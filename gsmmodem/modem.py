@@ -226,7 +226,6 @@ class GsmModem(SerialComms):
         for cmd, desc in init_commands:
             try:
                 self.write(cmd)
-                self.log.debug('Command OK: %s (%s)', cmd, desc)
             except CommandError:
                 self.log.warning('Command failed: %s (%s)', cmd, desc)
 
