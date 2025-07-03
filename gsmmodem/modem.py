@@ -198,6 +198,7 @@ class GsmModem(SerialComms):
         self.log.info('Connecting to modem on port %s at %dbps', self.port, self.baudrate)
         super(GsmModem, self).connect()
 
+        # Ожидание запуска модема
         if waitingForModemToStartInSeconds > 0:
             while waitingForModemToStartInSeconds > 0:
                 try:
@@ -205,19 +206,29 @@ class GsmModem(SerialComms):
                     break
                 except TimeoutException:
                     waitingForModemToStartInSeconds -= 0.5
-                    
+
+        # Проверка регистрации в сети
         try:
-            creg = lineStartingWith('+CREG:', self.write('AT+CREG?'))[7:] # example response: +CREG: 0,1 OK
-            # creg = int(creg.split(",")[0])
-            # if creg != 1:
-            #     self.write('AT+CREG=1')
+            creg = lineStartingWith('+CREG:', self.write('AT+CREG?'))[7:]
+            self.log.debug('Network registration status: %s', creg)
         except CommandError:
-            pass
-        
-        try:
-            self.write('AT+CMGF=0')
-        except CommandError:
-            pass
+            self.log.warning('Could not check +CREG status')
+
+        # Инициализационные AT-команды
+        init_commands = [
+            ('AT+CMGF=0', 'Set SMS to PDU mode'),
+            ('AT+PSAPPUSH', 'Enable PS app push'),
+            ('AT+CLIP=1', 'Enable caller ID'),
+            ('AT+VTD=30', 'Set DTMF duration'),
+            # ('AT+PSAPTIMERCFG = 2,20', '') - Команда вызывает ошибку
+        ]
+
+        for cmd, desc in init_commands:
+            try:
+                self.write(cmd)
+                self.log.debug('Command OK: %s (%s)', cmd, desc)
+            except CommandError:
+                self.log.warning('Command failed: %s (%s)', cmd, desc)
 
         # Send some initialization commands to the modem
         # try:
