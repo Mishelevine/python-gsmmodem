@@ -147,11 +147,12 @@ class GsmModem(SerialComms):
     CDSI_REGEX = re.compile('\+CDSI:\s*"([^"]+)",(\d+)$')
     CDS_REGEX  = re.compile('\+CDS:\s*([0-9]+)"$')
 
-    def __init__(self, port, baudrate=115200, incomingCallCallbackFunc=None, smsReceivedCallbackFunc=None, smsStatusReportCallback=None, requestDelivery=True, AT_CNMI="", *a, **kw):
+    def __init__(self, port, baudrate=115200, incomingCallCallbackFunc=None, msdReceivedCallbackFunc=None, smsReceivedCallbackFunc=None, smsStatusReportCallback=None, requestDelivery=True, AT_CNMI="", *a, **kw):
         super(GsmModem, self).__init__(port, baudrate, notifyCallbackFunc=self._handleModemNotification, *a, **kw)
         self.incomingCallCallback = incomingCallCallbackFunc or self._placeholderCallback
         self.smsReceivedCallback = smsReceivedCallbackFunc or self._placeholderCallback
         self.smsStatusReportCallback = smsStatusReportCallback or self._placeholderCallback
+        self.msdReceivedCallback = msdReceivedCallbackFunc or self._placeholderCallback
         self.requestDelivery = requestDelivery
         self.AT_CNMI = AT_CNMI or "2,1,0,2"
         # Flag indicating whether caller ID for incoming call notification has been set up
@@ -1018,6 +1019,14 @@ class GsmModem(SerialComms):
                     self.activeCalls[callId] = call
                     self.incomingCallCallback(call)
                     return
+            elif line.startswith('+MSD:'):
+                msd_hex = line[6:]
+                self.log.info('Recieved MSD: %s', msd_hex)
+                try:
+                    self.msdReceivedCallback(msd_hex)
+                except Exception as e:
+                    self.log.warning('Error while handling msdReceivedCallback: %s', e)
+                return
             elif line.startswith('+CMTI'):
                 # New SMS message indication
                 self._handleSmsReceived(line)
