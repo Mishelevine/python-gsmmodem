@@ -1013,6 +1013,7 @@ class GsmModem(SerialComms):
                 clipMatch = self.CLIP_REGEX.match(line)
                 if clipMatch:
                     number = '+' + clipMatch.group(1)
+                    self.log.info('Recieved call from: %s', number)
                     ton = clipMatch.group(2)
                     callId = len(self.activeCalls) + 1
                     call = IncomingCall(self, number, ton, None, callId, 0)
@@ -1121,7 +1122,7 @@ class GsmModem(SerialComms):
                 call = activeCall
                 call.ringCount += 1
         if call == None:
-            callId = len(self.activeCalls) + 1;
+            callId = len(self.activeCalls) + 1
             call = IncomingCall(self, callerNumber, ton, callerName, callId, callType)
             self.activeCalls[callId] = call
         self.incomingCallCallback(call)
