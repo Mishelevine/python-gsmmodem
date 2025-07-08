@@ -1478,7 +1478,7 @@ class Call(object):
         :raise CommandError: if the command failed/is not supported
         :raise InvalidStateException: if the call has not been answered, or is ended while the command is still executing
         """
-        if self.answered:
+        if self.active:
             dtmfCommandBase = self.DTMF_COMMAND_BASE.format(cid=self.id)
             toneLen = len(tones)
             for tone in list(tones):
@@ -1495,7 +1495,7 @@ class Call(object):
                 else:
                     raise e
         else:
-            raise InvalidStateException('Call is not active (it has not yet been answered, or it has ended).')
+            raise InvalidStateException('Call is not active.')
 
     def hangup(self):
         """ End the phone call.
