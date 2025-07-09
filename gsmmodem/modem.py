@@ -748,24 +748,6 @@ class GsmModem(SerialComms):
 
         if result == None:
             raise CommandError('Modem did not respond with +CMGS response')
-        
-        def sendRawPduSms(self, pduHex: str):
-            """
-            Отправка PDU-сообщения напрямую в модем.
-            pduHex — строка PDU в hex.
-            """
-            if not isinstance(pduHex, str) or len(pduHex) % 2 != 0:
-                raise ValueError("Неверная PDU-строка")
-
-            tpduLength = (len(pduHex) // 2) - 1
-            self.write(f'AT+CMGS={tpduLength}', timeout=5, expectedResponseTermSeq='> ')
-            result = lineStartingWith('+CMGS:', self.write(pduHex, timeout=35, writeTerm=CTRLZ))
-
-            if result is None:
-                raise CommandError('Модем не вернул +CMGS')
-            
-            return result
-
 
         # Keep SMS reference number in order to pair delivery reports with sent message
         reference = int(result[7:])
@@ -787,6 +769,23 @@ class GsmModem(SerialComms):
                 raise TimeoutException()
         return sms
 
+    def sendRawPduSms(self, pduHex: str):
+        """
+        Отправка PDU-сообщения напрямую в модем.
+        pduHex — строка PDU в hex.
+        """
+        if not isinstance(pduHex, str) or len(pduHex) % 2 != 0:
+            raise ValueError("Неверная PDU-строка")
+
+        tpduLength = (len(pduHex) // 2) - 1
+        self.write(f'AT+CMGS={tpduLength}', timeout=5, expectedResponseTermSeq='> ')
+        result = lineStartingWith('+CMGS:', self.write(pduHex, timeout=35, writeTerm=CTRLZ))
+
+        if result is None:
+            raise CommandError('Модем не вернул +CMGS')
+        
+        return result
+    
     def sendUssd(self, ussdString, responseTimeout=15):
         """ Starts a USSD session by dialing the the specified USSD string, or \
         sends the specified string in the existing USSD session (if any)
