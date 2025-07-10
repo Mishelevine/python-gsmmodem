@@ -769,22 +769,45 @@ class GsmModem(SerialComms):
                 raise TimeoutException()
         return sms
 
-    def sendRawPduSms(self, pduHex: str):
+    def sendBinarySms(self, destination: str, payload: bytes):
         """
-        Отправка PDU-сообщения напрямую в модем.
-        pduHex — строка PDU в hex.
+        Send binary SMS (8-bit PDU) to destination number.
+        Useful for sending MSD or other encoded data.
+
+        :param destination: Recipient phone number in international format (e.g. +79261234567)
+        :param payload: Raw 8-bit binary data
         """
-        if not isinstance(pduHex, str) or len(pduHex) % 2 != 0:
-            raise ValueError("Неверная PDU-строка")
+        def encode_phone_number(number: str) -> str:
+            number = number.lstrip('+')
+            if len(number) % 2:
+                number += 'F'
+            return ''.join(number[i+1] + number[i] for i in range(0, len(number), 2))
 
-        tpduLength = (len(pduHex) // 2) - 1
-        self.write(f'AT+CMGS={tpduLength}', timeout=5, expectedResponseTermSeq='> ')
-        result = lineStartingWith('+CMGS:', self.write(pduHex, timeout=35, writeTerm=CTRLZ))
+        try:
+            smsc_info = '00'  # use modem default SMSC
+            first_octet = '11'  # SMS-SUBMIT
+            mr = '00'
+            dest_len = f"{len(destination.lstrip('+')):02X}"
+            dest_type = '91'  # international
+            dest_encoded = encode_phone_number(destination)
+            pid = '00'
+            dcs = '04'  # 8-bit binary
+            vp = ''
+            udl = f"{len(payload):02X}"
+            ud = payload.hex().upper()
 
-        if result is None:
-            raise CommandError('Модем не вернул +CMGS')
-        
-        return result
+            tpdu = first_octet + mr + dest_len + dest_type + dest_encoded + pid + dcs + vp + udl + ud
+            pdu = smsc_info + tpdu
+            tpdu_len = len(tpdu) // 2
+
+            self.write(f'AT+CMGS={tpdu_len}', expectedResponseTermSeq='> ')
+            self.write(pdu, writeTerm=chr(26))  # CTRL+Z
+
+            self.log.info(f"Binary SMS sent to {destination}")
+
+        except Exception as e:
+            self.log.error(f"Failed to send binary SMS: {e}")
+            raise
     
     def sendUssd(self, ussdString, responseTimeout=15):
         """ Starts a USSD session by dialing the the specified USSD string, or \
