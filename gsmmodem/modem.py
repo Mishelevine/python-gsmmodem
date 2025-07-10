@@ -1228,7 +1228,6 @@ class GsmModem(SerialComms):
         return self._handleCallEnded(regexMatch, callId, True)
 
     def _handleSmsReceived(self, notificationLine):
-        self.log.debug('Custom SMS handler triggered')
         match = self.CMTI_REGEX.match(notificationLine)
         if not match:
             self.log.warning('Invalid CMTI format: %s', notificationLine)
@@ -1236,7 +1235,7 @@ class GsmModem(SerialComms):
 
         memory = match.group(1)
         index = int(match.group(2))
-        self.log.info(f"Новое SMS в памяти {memory}, индекс {index}")
+        self.log.info(f"New SMS in memory {memory}, index {index}")
 
         try:
             self.write(f'AT+CPMS="{memory}"')
@@ -1254,7 +1253,7 @@ class GsmModem(SerialComms):
                 self.smsPduHandler(index, memory, pdu)
 
         except Exception as e:
-            self.log.error(f"Ошибка при обработке входящего SMS: {e}")
+            self.log.error(f"Error while handling incoming SMS: {e}")
 
     def _handleSmsStatusReport(self, notificationLine):
         """ Handler for SMS status reports """
