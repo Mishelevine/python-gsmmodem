@@ -151,6 +151,7 @@ class GsmModem(SerialComms):
         super(GsmModem, self).__init__(port, baudrate, notifyCallbackFunc=self._handleModemNotification, *a, **kw)
         self.incomingCallCallback = incomingCallCallbackFunc or self._placeholderCallback
         self.smsReceivedCallback = smsReceivedCallbackFunc or self._placeholderCallback
+        self.smsPduHandler = None
         self.smsStatusReportCallback = smsStatusReportCallback or self._placeholderCallback
         self.msdReceivedCallback = msdReceivedCallbackFunc or self._placeholderCallback
         self.requestDelivery = requestDelivery
@@ -543,6 +544,9 @@ class GsmModem(SerialComms):
             self.write('AT+CPMS="{0}"'.format(readDelete))
             self._smsMemReadDelete = readDelete
 
+    def set_sms_pdu_handler(self, handler_func):
+        self.smsPduHandler = handler_func
+    
     def _compileSmsRegexes(self):
         """ Compiles regular expression used for parsing SMS messages based on current mode """
         if self.smsTextMode:
@@ -1224,20 +1228,33 @@ class GsmModem(SerialComms):
         return self._handleCallEnded(regexMatch, callId, True)
 
     def _handleSmsReceived(self, notificationLine):
-        """ Handler for "new SMS" unsolicited notification line """
-        self.log.debug('SMS message received')
-        if self.smsReceivedCallback is not None:
-            cmtiMatch = self.CMTI_REGEX.match(notificationLine)
-            if cmtiMatch:
-                msgMemory = cmtiMatch.group(1)
-                msgIndex = cmtiMatch.group(2)
-                sms = self.readStoredSms(msgIndex, msgMemory)
-                try:
-                    self.smsReceivedCallback(sms)
-                except Exception:
-                    self.log.error('error in smsReceivedCallback', exc_info=True)
-                else:
-                    self.deleteStoredSms(msgIndex)
+        self.log.debug('Custom SMS handler triggered')
+        match = self.CMTI_REGEX.match(notificationLine)
+        if not match:
+            self.log.warning('Invalid CMTI format: %s', notificationLine)
+            return
+
+        memory = match.group(1)
+        index = int(match.group(2))
+        self.log.info(f"Новое SMS в памяти {memory}, индекс {index}")
+
+        try:
+            self.write(f'AT+CPMS="{memory}"')
+            response = self.write(f'AT+CMGR={index}')
+            pdu = None
+            for line in response:
+                if line and line.startswith('0791'):
+                    pdu = line.strip()
+                    self.log.info(f"Получен PDU: {pdu}")
+                    break
+
+            self.deleteStoredSms(index, memory)
+
+            if self.smsPduHandler and pdu:
+                self.smsPduHandler(index, memory, pdu)
+
+        except Exception as e:
+            self.log.error(f"Ошибка при обработке входящего SMS: {e}")
 
     def _handleSmsStatusReport(self, notificationLine):
         """ Handler for SMS status reports """
