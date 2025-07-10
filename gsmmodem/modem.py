@@ -1244,13 +1244,13 @@ class GsmModem(SerialComms):
             for line in response:
                 if line and line.startswith('0791'):
                     pdu = line.strip()
-                    self.log.info(f"Получен PDU: {pdu}")
+                    self.log.info(f"PDU recived: {pdu}")
                     break
 
             self.deleteStoredSms(index, memory)
 
             if self.smsPduHandler and pdu:
-                self.smsPduHandler(index, memory, pdu)
+                self.smsPduHandler(pdu)
 
         except Exception as e:
             self.log.error(f"Error while handling incoming SMS: {e}")
