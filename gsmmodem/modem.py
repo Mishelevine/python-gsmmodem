@@ -802,7 +802,7 @@ class GsmModem(SerialComms):
             tpdu_len = len(tpdu) // 2  # in bytes
 
             self.write(f'AT+CMGS={tpdu_len}', expectedResponseTermSeq='> ')
-            self.write(pdu, writeTerm=chr(26))  # CTRL+Z
+            self.write(pdu, writeTerm=chr(26))
 
             self.log.info(f"Binary SMS sent to {destination}")
 
@@ -1535,7 +1535,7 @@ class Call(object):
             toneLen = len(tones)
             for tone in list(tones):
               try:
-                 self._gsmModem.write('AT{0}{1}'.format(dtmfCommandBase,tone), timeout=(5 + toneLen))
+                 self._gsmModem.write('AT{0}{1}'.format(dtmfCommandBase,tone), timeout=(toneLen))
 
               except CmeError as e:
                 if e.code == 30:
