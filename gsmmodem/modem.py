@@ -2,6 +2,7 @@
 
 """ High-level API classes for an attached GSM modem """
 
+import random
 import sys, re, logging, weakref, time, threading, abc, codecs
 from datetime import datetime
 from time import sleep
@@ -784,22 +785,22 @@ class GsmModem(SerialComms):
             return ''.join(number[i+1] + number[i] for i in range(0, len(number), 2))
 
         try:
-            smsc_info = '00'  # use default SMSC from modem
-            first_octet = '11'  # SMS-SUBMIT + VPF=relative
-            mr = '00'
+            smsc_info = '00'
+            first_octet = '11'
+            mr = f"{random.randint(0, 255):02X}"
             dest_digits = destination.lstrip('+')
             dest_len = f"{len(dest_digits):02X}"
-            dest_type = '91'  # international
+            dest_type = '91'
             dest_encoded = encode_phone_number(destination)
             pid = '00'
-            dcs = '04'  # 8-bit binary
-            vp = 'AA'  # ~4 days
+            dcs = '04'
+            vp = 'AA'
             udl = f"{len(payload):02X}"
             ud = payload.hex().upper()
 
             tpdu = first_octet + mr + dest_len + dest_type + dest_encoded + pid + dcs + vp + udl + ud
             pdu = smsc_info + tpdu
-            tpdu_len = len(tpdu) // 2  # in bytes
+            tpdu_len = len(tpdu) // 2
 
             self.write(f'AT+CMGS={tpdu_len}', expectedResponseTermSeq='> ')
             self.write(pdu, writeTerm=chr(26))
