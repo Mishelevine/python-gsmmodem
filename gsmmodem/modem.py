@@ -787,7 +787,8 @@ class GsmModem(SerialComms):
         try:
             smsc_info = '00'
             first_octet = '11'
-            mr = f"{random.randint(0, 255):02X}"
+            mr_byte = random.randint(0, 255)
+            mr = f"{mr_byte:02X}"
             dest_digits = destination.lstrip('+')
             dest_len = f"{len(dest_digits):02X}"
             dest_type = '91'
