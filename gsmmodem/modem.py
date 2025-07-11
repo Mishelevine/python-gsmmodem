@@ -776,10 +776,6 @@ class GsmModem(SerialComms):
     def sendBinarySms(self, destination: str, payload: bytes):
         """
         Send binary SMS (8-bit PDU) to destination number.
-        Useful for sending MSD or other encoded data.
-
-        :param destination: Recipient phone number in international format (e.g. +79261234567)
-        :param payload: Raw 8-bit binary data
         """
         def encode_phone_number(number: str) -> str:
             number = number.lstrip('+')
@@ -788,21 +784,22 @@ class GsmModem(SerialComms):
             return ''.join(number[i+1] + number[i] for i in range(0, len(number), 2))
 
         try:
-            smsc_info = '00'  # use modem default SMSC
-            first_octet = '11'  # SMS-SUBMIT
+            smsc_info = '00'  # use default SMSC from modem
+            first_octet = '11'  # SMS-SUBMIT + VPF=relative
             mr = '00'
-            dest_len = f"{len(destination.lstrip('+')):02X}"
+            dest_digits = destination.lstrip('+')
+            dest_len = f"{len(dest_digits):02X}"
             dest_type = '91'  # international
             dest_encoded = encode_phone_number(destination)
             pid = '00'
             dcs = '04'  # 8-bit binary
-            vp = ''
+            vp = 'AA'  # ~4 days
             udl = f"{len(payload):02X}"
             ud = payload.hex().upper()
 
             tpdu = first_octet + mr + dest_len + dest_type + dest_encoded + pid + dcs + vp + udl + ud
             pdu = smsc_info + tpdu
-            tpdu_len = len(tpdu) // 2
+            tpdu_len = len(tpdu) // 2  # in bytes
 
             self.write(f'AT+CMGS={tpdu_len}', expectedResponseTermSeq='> ')
             self.write(pdu, writeTerm=chr(26))  # CTRL+Z
@@ -1235,7 +1232,6 @@ class GsmModem(SerialComms):
 
         memory = match.group(1)
         index = int(match.group(2))
-        self.log.info(f"New SMS in memory {memory}, index {index}")
 
         try:
             self.write(f'AT+CPMS="{memory}"')
@@ -1244,7 +1240,7 @@ class GsmModem(SerialComms):
             for line in response:
                 if line and line.startswith('0791'):
                     pdu = line.strip()
-                    self.log.info(f"PDU recived: {pdu}")
+                    self.log.info(f"Recived PDU: {pdu}")
                     break
 
             self.deleteStoredSms(index, memory)
