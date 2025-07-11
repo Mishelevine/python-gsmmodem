@@ -789,6 +789,7 @@ class GsmModem(SerialComms):
             first_octet = '11'
             mr_byte = random.randint(0, 255)
             mr = f"{mr_byte:02X}"
+            print(f"DEBUG MR BEFORE PDU: {mr}")
             dest_digits = destination.lstrip('+')
             dest_len = f"{len(dest_digits):02X}"
             dest_type = '91'
@@ -802,6 +803,10 @@ class GsmModem(SerialComms):
             tpdu = first_octet + mr + dest_len + dest_type + dest_encoded + pid + dcs + vp + udl + ud
             pdu = smsc_info + tpdu
             tpdu_len = len(tpdu) // 2
+            
+            print(f"DEBUG MR AFTER PDU: {mr}")
+            print(f"PDU[4:6]: {pdu[4:6]}")
+            print(f"PDU: {pdu}")
 
             self.write(f'AT+CMGS={tpdu_len}', expectedResponseTermSeq='> ')
             self.write(pdu, writeTerm=chr(26))
